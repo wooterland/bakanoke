@@ -5,7 +5,8 @@ from bs4 import BeautifulSoup
 cleaner = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
 
 
-def get_page(manga_id):
+def get_local_page(manga_id):
+    """Return local html file name"""
     url = f'https://www.mangaupdates.com/series.html?id={manga_id}'
     file_name = f'{manga_id}.html'
     r = requests.get(url).content
@@ -13,63 +14,87 @@ def get_page(manga_id):
         f.write(r)
     return file_name
 
-
+# TODO Done!
 def manga_title(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        title = soup.find("title").string
-        title = title.replace("Baka-Updates Manga - ", "")
+        title = soup.find('title').get_text(strip=True)
+        title = title.replace('Baka-Updates Manga - ', '')
     return title
 
 
+# TODO Done?
 def description(manga_id):
+    """Return description. Found two types of description. Maybe they have more."""
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        desc = soup.find("b", text="Description").find_next("div").string
-    return desc
+        desc = soup.find('div', id='div_desc_more')
+        if desc:
+            desc = soup.find('div', id='div_desc_more').get_text(strip=True)
+            return desc
+        if not desc:
+            desc = soup.find('b', text='Description').find_next('div').get_text(strip=True)
+            return desc
 
 
+# TODO Done?
 def manga_type(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        manga_type = soup.find("b", text="Type").find_next("div").string
+        manga_type = soup.find('b', text='Type').find_next('div').get_text(strip=True)
     return manga_type
 
 
-def eelated_series(manga_id):
+# TODO Done!
+def related_series(manga_id):
+    """Return list with related series"""
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
+        rel_ser = []
         soup = BeautifulSoup(f, 'html.parser')
-        rel_series = soup.find("b", text="Related Series").find_next("div").string
-    return rel_series
+        raw_u = soup.find('b', text='Related Series').find_next('div')
+        for a in raw_u.find_all('a'):
+            i = a.find('u').get_text(strip=True)
+            rel_ser.append(i)
+    return rel_ser
 
 
+# TODO Done?
 def associated_names(manga_id):
+    """Return list with manga title on different languages"""
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        ass_names = soup.find("b", text="Associated Names").find_next("div").get_text("<br>").split("<br>")
+        ass_names = soup.find('b', text='Associated Names').find_next('div').get_text('<br>').split('<br>')
         del ass_names[-1]
     return ass_names
 
 
-def status(manga_id): # TODO
+# TODO Done?
+def status(manga_id):
+    """Return status."""
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        status = soup.find("div", text="Status in Country of Origin").find_next("div").string
+        status = soup.find('div', text=' in Country of Origin').find_next('div').get_text(strip=True)
+        if not status:
+            status = 'Unknown'
     return status
 
 
+# TODO Done!
 def complete_scan(manga_id):
+    """Return status about scanlete"""
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        complete_scan = soup.find("b", text="Completely Scanlated?").find_next("div").string
-    return complete_scan
+        comp_scan = soup.find('b', text='Completely Scanlated?').find_next("div").get_text(strip=True)
+    return comp_scan
 
 
-def anime_status(manga_id): # TODO
+# TODO Done!
+def anime_status(manga_id):
+    """Return status about anime adaptation"""
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        anime_status = soup.find("b", text="Anime Start/End Chapter").find_next("div").string
-    return anime_status
+        anime = soup.find("b", text="Anime Start/End Chapter").find_next("div").get_text(strip=True)
+    return anime
 
 
 def genre(manga_id):
@@ -137,4 +162,27 @@ def eng_publisher(manga_id):
         eng_pub = cleaner.sub('', eng_pub)
     return eng_pub
 
-print()
+
+def get_manga(manga_id):
+    with open(f'raw_data/{manga_id}.html', 'rb') as f:
+        soup = BeautifulSoup(f, 'html.parser')
+
+        manga = [{
+            'manga_title': soup.find("title").get_text(strip=True).replace("Baka-Updates Manga - ", ""),
+            #'description': soup.find("b", text="Description").find_next("div").get_text(strip=True),
+            'manga_type': soup.find("b", text="Type").find_next("div").get("u"),
+            'related_series': soup.find("b", text="Related Series").find_next("div").get_text( ),
+            'associated_names': soup.find("b", text="Associated Names").find_next("div").get_text("<br>").split("<br>"),
+            'status': soup.find("div", text=' in Country of Origin').find_next("div").get_text(strip=True),
+            'complete_scan': soup.find("b", text="Completely Scanlated?").find_next("div").get_text(strip=True),
+            'anime_status': soup.find("b", text="Anime Start/End Chapter").find_next("div").get_text(strip=True),
+            'genre': soup.find("b", text="Genre").find_next("div").get_text("<u>").split("<u>"),
+            'authors': soup.find("b", text="Author(s)").find_next("div").get_text("<u>").split("<u>"),
+            'artists': soup.find("b", text="Artist(s)").find_next("div").get_text("<u>").split("<u>"),
+            'year': soup.find("b", text="Year").find_next("div").get_text(strip=True),
+            'publisher': soup.find("b", text="Original Publisher").find_next("div").get_text("<u>"),
+            'serialized': soup.find("b", text="Serialized In (magazine)").find_next("div").get_text("<u>"),
+            'licensed': soup.find("b", text="Licensed (in English)").find_next("div"),
+            'eng_pub': soup.find("b", text="English Publisher").find_next("div").get_text(strip=True)
+        }]
+    return manga
