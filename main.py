@@ -1,10 +1,12 @@
+import unicodedata
 import requests
 import re
 from bs4 import BeautifulSoup
 
-cleaner = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
+CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
 
 
+# TODO Done!
 def get_local_page(manga_id):
     """Return local html file name"""
     url = f'https://www.mangaupdates.com/series.html?id={manga_id}'
@@ -13,6 +15,7 @@ def get_local_page(manga_id):
     with open(f'raw_data/{file_name}', 'wb') as f:
         f.write(r)
     return file_name
+
 
 # TODO Done!
 def manga_title(manga_id):
@@ -93,14 +96,17 @@ def anime_status(manga_id):
     """Return status about anime adaptation"""
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        anime = soup.find("b", text="Anime Start/End Chapter").find_next("div").get_text(strip=True)
+        anime = soup.find('b', text='Anime Start/End Chapter').find_next('div').get_text(strip=True)
+        if anime != 'N/A':
+            anime = anime.split('/')
     return anime
 
 
+# TODO Done!
 def genre(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        genre = soup.find("b", text="Genre").find_next("div").get_text("<u>").split("<u>")
+        genre = soup.find('b', text='Genre').find_next('div').get_text('<u>').split('<u>')
         for i in range(1, len(genre)):
             del genre[i]
             if i == len(genre):
@@ -109,80 +115,103 @@ def genre(manga_id):
     return genre
 
 
+# TODO Done!
 def authors(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        authors = soup.find("b", text="Author(s)").find_next("div").get_text("<u>").split("<u>")
+        raw_autors = soup.find('b', text='Author(s)').find_next('div').get_text(strip=True).replace('[Add]','')
+        authors = unicodedata.normalize("NFKD", raw_autors).split(' ')
         del authors[-1]
     return authors
 
 
+# TODO Done!
 def artists(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        artists = soup.find("b", text="Artist(s)").find_next("div").get_text("<u>").split("<u>")
+        raw_artists = soup.find("b", text="Artist(s)").find_next('div').get_text(strip=True).replace('[Add]','')
+        artists = unicodedata.normalize("NFKD", raw_artists).split(' ')
         del artists[-1]
     return artists
 
 
+# TODO Done!
 def year(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        year = soup.find("b", text="Year").find_next("div").string
+        year = soup.find("b", text="Year").find_next("div").get_text(strip=True)
     return year
 
 
+# TODO Done?
 def publisher(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
         pub = soup.find("b", text="Original Publisher").find_next("div").get_text("<u>")
-        pub = cleaner.sub('', pub)
+        pub = CLEANER.sub('', pub)
     return pub
 
 
+# TODO Done!
 def serialized(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        serialized = soup.find("b", text="Serialized In (magazine)").find_next("div").get_text("<u>")
-        serialized = cleaner.sub('', serialized)
-    return serialized
+        ser = []
+        raw_ser = soup.find('b', text='Serialized In (magazine)').find_next('div')
+        for a in raw_ser.find_all('a'):
+            i = a.find('u').get_text(strip=True)
+            ser.append(i)
+    return ser
 
 
+# TODO Done!
 def licensed(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        licensed = soup.find("b", text="Licensed (in English)").find_next("div").string
+        licensed = soup.find("b", text="Licensed (in English)").find_next("div").get_text(strip=True)
     return licensed
 
 
+# TODO Done!
 def eng_publisher(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-        eng_pub = soup.find("b", text="English Publisher").find_next("div").get_text("<u>")
-        eng_pub = cleaner.sub('', eng_pub)
+        eng_pub = []
+        raw_eng_pub = soup.find('b', text='English Publisher').find_next('div')
+        for a in raw_eng_pub.find_all('a'):
+            i = a.find('u').get_text(strip=True)
+            eng_pub.append(i)
     return eng_pub
 
 
 def get_manga(manga_id):
     with open(f'raw_data/{manga_id}.html', 'rb') as f:
         soup = BeautifulSoup(f, 'html.parser')
-
-        manga = [{
-            'manga_title': soup.find("title").get_text(strip=True).replace("Baka-Updates Manga - ", ""),
-            #'description': soup.find("b", text="Description").find_next("div").get_text(strip=True),
-            'manga_type': soup.find("b", text="Type").find_next("div").get("u"),
-            'related_series': soup.find("b", text="Related Series").find_next("div").get_text( ),
-            'associated_names': soup.find("b", text="Associated Names").find_next("div").get_text("<br>").split("<br>"),
-            'status': soup.find("div", text=' in Country of Origin').find_next("div").get_text(strip=True),
-            'complete_scan': soup.find("b", text="Completely Scanlated?").find_next("div").get_text(strip=True),
-            'anime_status': soup.find("b", text="Anime Start/End Chapter").find_next("div").get_text(strip=True),
-            'genre': soup.find("b", text="Genre").find_next("div").get_text("<u>").split("<u>"),
-            'authors': soup.find("b", text="Author(s)").find_next("div").get_text("<u>").split("<u>"),
-            'artists': soup.find("b", text="Artist(s)").find_next("div").get_text("<u>").split("<u>"),
-            'year': soup.find("b", text="Year").find_next("div").get_text(strip=True),
-            'publisher': soup.find("b", text="Original Publisher").find_next("div").get_text("<u>"),
-            'serialized': soup.find("b", text="Serialized In (magazine)").find_next("div").get_text("<u>"),
-            'licensed': soup.find("b", text="Licensed (in English)").find_next("div"),
-            'eng_pub': soup.find("b", text="English Publisher").find_next("div").get_text(strip=True)
-        }]
+        invalid_id = soup.find(text='You specified an invalid series id.')
+        if invalid_id:
+            manga = [{
+                'Error': 'invalid id'
+            }]
+        if not invalid_id:
+            manga = [{
+                'manga_title': manga_title(manga_id),
+                # 'description': description(manga_id),
+                'manga_type': manga_type(manga_id),
+                'related_series': related_series(manga_id),
+                'associated_names': associated_names(manga_id),
+                'status': status(manga_id),
+                'complete_scan': complete_scan(manga_id),
+                'anime_status': anime_status(manga_id),
+                'genre': genre(manga_id),
+                'authors': authors(manga_id),
+                'artists': artists(manga_id),
+                'year': year(manga_id),
+                'publisher': publisher(manga_id),
+                'serialized': serialized(manga_id),
+                'licensed': licensed(manga_id),
+                'eng_pub': eng_publisher(manga_id)
+            }]
     return manga
+
+
+print(get_manga(88))
