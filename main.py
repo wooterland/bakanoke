@@ -195,7 +195,7 @@ def get_manga(manga_id):
         if not invalid_id:
             manga = [{
                 'manga_title': manga_title(manga_id),
-                # 'description': description(manga_id),
+                'description': description(manga_id),
                 'manga_type': manga_type(manga_id),
                 'related_series': related_series(manga_id),
                 'associated_names': associated_names(manga_id),
@@ -212,6 +212,3 @@ def get_manga(manga_id):
                 'eng_pub': eng_publisher(manga_id)
             }]
     return manga
-
-
-print(get_manga(88))
